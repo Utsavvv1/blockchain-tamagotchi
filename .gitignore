@@ -1,0 +1,11 @@
+# Rust
+/target/
+**/*.rs.bk
+
+# IDE
+.vscode/
+.idea/
+
+# Local data
+*.json
+.env
