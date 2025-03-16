@@ -1,4 +1,4 @@
-use sha2:: {Digest, Sha256}
+use sha2:: {Digest, Sha256};
 use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -39,26 +39,27 @@ impl Tamagotchi {
     }
 
     fn feed(&mut self) {
-        self.hunger = self.hunger.saturating_sub(10);         //saturating for bound handling
-        self.happiness = self.happiness.saturating_add(5);
+        self.hunger = self.hunger.saturating_sub(10).min(100); 
+        self.happiness = self.happiness.saturating_add(5).min(100); 
         self.update_time();
     }
-     fn play(&mut self) {
-        self.happiness = self.happiness.saturating_add(10);
-        self.cleanliness = self.cleanliness.saturating_sub(5);
+
+    fn play(&mut self) {
+        self.happiness = self.happiness.saturating_add(10).min(100);
+        self.cleanliness = self.cleanliness.saturating_sub(5).min(100);
         self.update_time();
     }
-    
+
     fn clean(&mut self) {
-        self.cleanliness = self.cleanliness.saturating_add(100);
+        self.cleanliness = self.cleanliness.saturating_add(100).min(100); 
     }
 
     fn update_stats(&mut self) {
         let now = Utc::now();
         let secs_passed = (now - self.last_interaction).num_seconds() as u32;
-        self.hunger = self.hunger.saturating_add(secs_passed / 10);
-        self.happiness = self.happiness.saturating_sub(secs_passed / 15);
-        self.cleanliness = self.cleanliness.saturating_sub(secs_passed / 20);
+        self.hunger = self.hunger.saturating_add(secs_passed / 10).min(100);
+        self.happiness = self.happiness.saturating_sub(secs_passed / 15).min(100);
+        self.cleanliness = self.cleanliness.saturating_sub(secs_passed / 10).min(100);
         self.last_interaction = now;
     }
 }
@@ -173,8 +174,16 @@ fn main() {
                         "[{}] {} - Previous: {}... Current: {}...",
                         block.index,
                         block.action,
-                        &block.previous_hash[0..6],     //truncated
-                        &block.hash[0..6],
+                        if block.previous_hash.len() >= 6 {
+                            &block.previous_hash[0..6]
+                        } else {
+                            &block.previous_hash
+                        }, // truncated
+                        if block.hash.len() >= 6 {
+                            &block.hash[0..6]
+                        } else {
+                            &block.hash
+                        }, // truncated
                     );
                 }
             }
