@@ -1,106 +1,16 @@
-use sha2:: {Digest, Sha256};
-use chrono::prelude::*;
-use serde::{Deserialize, Serialize};
 use std::fs;
 use dialoguer::{Select, Input};
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct Tamagotchi {
-    name: String,
-    hunger: u32,
-    happiness: u32,
-    cleanliness: u32,
-    last_interaction: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct Block {
-    index: u64,                     //basically position in chain
-    timestamp: DateTime<Utc>,       //when did the action occur
-    action: String,                 // eg. "Fed"
-    previous_hash: String,          
-    hash: String,                   //current block fingerprint 
-}
+use tamagotchi::pet::Tamagotchi;
 
 
-impl Tamagotchi {
-    fn new(name: &str) -> Self {
-        Tamagotchi {
-            name: name.to_string(),
-            hunger: 50,          
-            happiness: 50,       
-            cleanliness: 50,     
-            last_interaction: Utc::now(),
-        }
-    }
+mod tamagotchi;
+mod blockchain;
+use blockchain::{Block, create_block, create_genesis_block};
 
-    fn update_time(&mut self) {
-        self.last_interaction = Utc::now();
-    }
+mod network;
+use network::{NetworkService, NetworkEvent, NetworkServiceExt};
 
-    fn feed(&mut self) {
-        self.hunger = self.hunger.saturating_sub(10).min(100); 
-        self.happiness = self.happiness.saturating_add(5).min(100); 
-        self.update_time();
-    }
-
-    fn play(&mut self) {
-        self.happiness = self.happiness.saturating_add(10).min(100);
-        self.cleanliness = self.cleanliness.saturating_sub(5).min(100);
-        self.update_time();
-    }
-
-    fn clean(&mut self) {
-        self.cleanliness = self.cleanliness.saturating_add(100).min(100); 
-    }
-
-    fn update_stats(&mut self) {
-        let now = Utc::now();
-        let secs_passed = (now - self.last_interaction).num_seconds() as u32;
-        self.hunger = self.hunger.saturating_add(secs_passed / 10).min(100);
-        self.happiness = self.happiness.saturating_sub(secs_passed / 15).min(100);
-        self.cleanliness = self.cleanliness.saturating_sub(secs_passed / 10).min(100);
-        self.last_interaction = now;
-    }
-}
-
-
-
-
-fn create_genesis_block() -> Block {
-    let mut hasher = Sha256::new();
-    hasher.update(b"genesis");
-    let hash = format!("{:x}", hasher.finalize());          //converts the byte array returned by hasher.finalise to lowercase hexadecimal string
-
-    Block {
-        index: 0,
-        timestamp: Utc::now(),
-        action: "GENESIS BLOCK" .to_string(),
-        previous_hash: "0".to_string(),
-        hash,
-    }
-}
-
-
-fn create_block(action: &str, previous_block: &Block) -> Block {
-    let mut hasher = Sha256::new();
-
-    let input = format!("{}{}{}", previous_block.hash, action, Utc::now());
-    hasher.update(input);
-    let hash = format!("{:x}", hasher.finalize());
-
-    Block {
-        index: previous_block.index + 1,
-        timestamp: Utc::now(),
-        action: action.to_string(),
-        previous_hash: previous_block.hash.clone(),     //creates and immutable link
-        hash,
-    }
-}
-
-
-
-fn save_state(pet: &Tamagotchi, blockchain: &[Block]) -> std::io::Result<()> {
+fn save_state(pet: &Tamagotchi, blockchain: &Vec<Block>) -> std::io::Result<()> {
 
     fs::write("pet_state.json", serde_json::to_string(pet)?)?;
     fs::write("blockchain.json", serde_json::to_string(blockchain)?)?;
